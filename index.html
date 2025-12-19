@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Web Scraper & Cleaner</title>
+    <title>Deep Web Crawler V3 (Anti-Bot Edition)</title>
     
-    <!-- External Libraries -->
+    <!-- Libraries -->
     <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
     <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
     <script src="https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
     <style>
         :root {
@@ -18,9 +17,10 @@
             --bg-input: #334155;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
+            --accent: #6366f1; /* Indigo for V3 */
+            --accent-hover: #4f46e5;
             --success: #22c55e;
+            --warning: #f59e0b;
             --error: #ef4444;
             --border: #475569;
             --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -40,7 +40,7 @@
             overflow: hidden;
         }
 
-        /* --- Header --- */
+        /* Header */
         header {
             background-color: var(--bg-panel);
             padding: 15px 25px;
@@ -52,51 +52,51 @@
         }
 
         h1 { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; }
-        .badge { font-size: 0.7rem; background: var(--accent); padding: 2px 6px; border-radius: 4px; margin-left: 10px; text-transform: uppercase; }
+        .badge { font-size: 0.7rem; background: var(--accent); padding: 2px 6px; border-radius: 4px; margin-left: 10px; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- Layout --- */
+        /* Layout */
         .main-container {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
 
-        /* Sidebar (Input & Controls) */
+        /* Sidebar */
         .sidebar {
-            width: 350px;
+            width: 380px;
             background-color: var(--bg-panel);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             padding: 20px;
             flex-shrink: 0;
+            overflow-y: auto;
             z-index: 10;
         }
 
-        .input-group { margin-bottom: 20px; display: flex; flex-direction: column; flex: 1; }
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; }
         
-        label { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600; }
+        label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; display: flex; justify-content: space-between; }
         
-        textarea {
-            flex: 1;
+        textarea, input[type="text"], input[type="number"] {
             background-color: var(--bg-input);
             border: 1px solid var(--border);
             color: var(--text-primary);
-            padding: 12px;
+            padding: 10px;
             border-radius: 6px;
-            resize: none;
             font-family: var(--font-mono);
             font-size: 0.8rem;
-            line-height: 1.4;
             transition: border-color 0.2s;
         }
-        textarea:focus { border-color: var(--accent); }
+        textarea:focus, input:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 100px; }
 
-        .settings {
+        .settings-box {
             background: rgba(0,0,0,0.2);
             padding: 15px;
             border-radius: 6px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
         }
 
         .toggle-row {
@@ -104,17 +104,17 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 10px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .toggle-row:last-child { margin-bottom: 0; }
 
-        /* Custom Toggle Switch */
-        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        /* Switch */
+        .switch { position: relative; display: inline-block; width: 36px; height: 18px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #64748b; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
+        input:checked + .slider:before { transform: translateX(18px); }
 
         .btn-primary {
             background-color: var(--accent);
@@ -126,9 +126,11 @@
             cursor: pointer;
             transition: background 0.2s;
             width: 100%;
+            margin-top: 10px;
         }
         .btn-primary:hover { background-color: var(--accent-hover); }
         .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-stop { background-color: var(--error); margin-top: 10px; display: none; }
 
         /* Results Area */
         .results-area {
@@ -145,7 +147,7 @@
         }
 
         .tab {
-            padding: 15px 25px;
+            padding: 12px 20px;
             cursor: pointer;
             font-size: 0.9rem;
             font-weight: 500;
@@ -154,7 +156,7 @@
             transition: all 0.2s;
         }
         .tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
-        .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(99, 102, 241, 0.1); }
 
         .output-wrapper {
             flex: 1;
@@ -175,37 +177,27 @@
             line-height: 1.6;
         }
 
-        /* Terminal / Logs */
+        /* Terminal */
         .terminal-overlay {
-            height: 150px;
-            background-color: #000;
+            height: 200px;
+            background-color: #0b1120;
             border-top: 1px solid var(--border);
             padding: 10px;
             font-family: var(--font-mono);
             font-size: 0.75rem;
             overflow-y: auto;
             display: flex;
-            flex-direction: column-reverse; /* Newest at bottom visually, but we append */
+            flex-direction: column;
         }
-        .log-entry { margin: 2px 0; }
+        .log-entry { margin: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
         .log-info { color: #94a3b8; }
         .log-success { color: var(--success); }
         .log-error { color: var(--error); }
-        .log-warn { color: #f59e0b; }
+        .log-warn { color: var(--warning); }
+        .log-child { margin-left: 15px; border-left: 2px solid #334155; padding-left: 5px; }
+        .log-retry { color: #c084fc; } /* Purple for retries */
 
-        /* Utilities */
-        .progress-bar {
-            height: 4px;
-            background-color: var(--bg-input);
-            width: 100%;
-        }
-        .progress-fill {
-            height: 100%;
-            background-color: var(--success);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
+        /* Toolbar */
         .toolbar {
             position: absolute;
             top: 10px;
@@ -225,10 +217,13 @@
         }
         .btn-sm:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
-        /* Responsive */
+        /* Progress */
+        .progress-bar { height: 4px; background-color: var(--bg-input); width: 100%; }
+        .progress-fill { height: 100%; background-color: var(--success); width: 0%; transition: width 0.3s ease; }
+
         @media (max-width: 768px) {
             .main-container { flex-direction: column; }
-            .sidebar { width: 100%; height: 40%; }
+            .sidebar { width: 100%; height: auto; max-height: 40vh; }
         }
     </style>
 </head>
@@ -236,10 +231,10 @@
 
     <header>
         <div style="display:flex; align-items:center">
-            <h1>Crawl & Clean <span class="badge">PRO</span></h1>
+            <h1>Crawler <span class="badge">PRO V3</span></h1>
         </div>
         <div style="font-size: 0.8rem; color: var(--text-secondary);">
-            Running locally in browser
+            Supabase + Retry Logic + Anti-Bot
         </div>
     </header>
 
@@ -250,29 +245,53 @@
     <div class="main-container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="input-group">
-                <label for="urlInput">Target URLs (One per line)</label>
-                <textarea id="urlInput" placeholder="https://example.com/article&#10;https://blog.site.com/post"></textarea>
+            
+            <!-- API Key Section -->
+            <div class="settings-box">
+                <label for="apiKey">Proxy API Key (x-proxy-key)</label>
+                <input type="text" id="apiKey" placeholder="chikibriki" onchange="saveSettings()">
+                <div style="font-size:0.7rem; color:#64748b; margin-top:5px;">Saved to local storage</div>
             </div>
 
-            <div class="settings">
+            <div class="input-group">
+                <label for="urlInput">Start URLs (One per line)</label>
+                <textarea id="urlInput" placeholder="https://example.com/blog"></textarea>
+            </div>
+
+            <!-- Crawl Settings -->
+            <div class="settings-box">
                 <div class="toggle-row">
-                    <span title="Routes requests through a public proxy to bypass SOP/CORS restrictions.">Enable CORS Proxy</span>
+                    <span title="If enabled, finds links on the page (same domain) and crawls them too.">Deep Crawl (Recursive)</span>
                     <label class="switch">
-                        <input type="checkbox" id="corsToggle">
+                        <input type="checkbox" id="deepCrawlToggle">
                         <span class="slider"></span>
                     </label>
                 </div>
+                <div class="input-group" style="margin-top:10px; margin-bottom:0;">
+                    <label for="maxLinks">Max Links per Page</label>
+                    <input type="number" id="maxLinks" value="20" min="1" max="100">
+                </div>
+            </div>
+
+            <div class="settings-box">
                 <div class="toggle-row">
-                    <span title="Removes all class names, IDs, and styles from the HTML output.">Strip Attributes</span>
+                    <span>Strip Attributes (Clean HTML)</span>
                     <label class="switch">
                         <input type="checkbox" id="stripAttrs" checked>
                         <span class="slider"></span>
                     </label>
                 </div>
+                <div class="toggle-row" style="margin-top:10px;">
+                    <span title="Adds random delays and browser headers to avoid detection.">Humanize (Anti-Bot)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="humanizeToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
 
-            <button id="runBtn" class="btn-primary" onclick="startCrawler()">Start Processing</button>
+            <button id="runBtn" class="btn-primary" onclick="startCrawler()">Start Crawling</button>
+            <button id="stopBtn" class="btn-primary btn-stop" onclick="stopCrawler()">STOP</button>
         </div>
 
         <!-- Results -->
@@ -287,6 +306,7 @@
                 <div class="toolbar">
                     <button class="btn-sm" onclick="downloadOutput('html')">Download .html</button>
                     <button class="btn-sm" onclick="copyOutput('cleanOutput')">Copy</button>
+                    <button class="btn-sm" onclick="clearOutput()">Clear</button>
                 </div>
                 <div id="cleanOutput" class="output-content"></div>
             </div>
@@ -296,49 +316,58 @@
                 <div class="toolbar">
                     <button class="btn-sm" onclick="downloadOutput('md')">Download .md</button>
                     <button class="btn-sm" onclick="copyOutput('markdownOutput')">Copy</button>
+                    <button class="btn-sm" onclick="clearOutput()">Clear</button>
                 </div>
                 <div id="markdownOutput" class="output-content"></div>
             </div>
 
             <!-- Terminal Log -->
             <div class="terminal-overlay" id="terminal">
-                <div class="log-entry log-info">> System ready. Waiting for input...</div>
+                <div class="log-entry log-info">> System ready. Enter URLs and API Key.</div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Configuration & State ---
-        const PROXY_URL = "https://api.allorigins.win/raw?url=";
-        const FALLBACK_PROXY = "https://corsproxy.io/?"; // Fallback if first fails
+        // --- Configuration ---
+        const PROXY_PRIMARY = "https://onbkfqayveownervyktu.supabase.co/functions/v1/cors-proxy?url=";
+        const PROXY_FALLBACK_1 = "https://corsproxy.io/?";
+        const PROXY_FALLBACK_2 = "https://api.allorigins.win/raw?url=";
         
-        let isProcessing = false;
+        // --- State ---
+        let isRunning = false;
+        let shouldStop = false;
+        let visitedUrls = new Set();
+        let queue = [];
         let processedCount = 0;
-        let totalCount = 0;
+        let totalQueued = 0;
 
-        // --- Turndown Setup (Markdown) ---
+        // --- Initialization ---
         const turndownService = new TurndownService({
             headingStyle: 'atx',
             codeBlockStyle: 'fenced',
             emDelimiter: '*'
         });
         turndownService.use(turndownPluginGfm.gfm);
-        
-        // Remove scripts and styles from markdown conversion explicitly
-        turndownService.remove(['script', 'style', 'iframe', 'nav', 'footer', 'header', 'aside']);
+        turndownService.remove(['script', 'style', 'iframe', 'nav', 'footer', 'header', 'aside', 'form']);
 
-        // --- UI Functions ---
-        
-        function log(msg, type = 'info') {
+        window.onload = function() {
+            const savedKey = localStorage.getItem('proxy_api_key');
+            if(savedKey) document.getElementById('apiKey').value = savedKey;
+        }
+
+        function saveSettings() {
+            const key = document.getElementById('apiKey').value;
+            localStorage.setItem('proxy_api_key', key);
+        }
+
+        // --- UI Helpers ---
+        function log(msg, type = 'info', isChild = false) {
             const term = document.getElementById('terminal');
             const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            
+            entry.className = `log-entry log-${type} ${isChild ? 'log-child' : ''}`;
             const time = new Date().toLocaleTimeString('en-US', {hour12: false});
             entry.innerText = `[${time}] ${msg}`;
-            
-            // Prepend to show latest at bottom if we used flex-col-reverse, 
-            // but for standard scrolling we append.
             term.appendChild(entry);
             term.scrollTop = term.scrollHeight;
         }
@@ -358,41 +387,107 @@
 
         function updateProgress() {
             const bar = document.getElementById('progressBar');
-            const pct = totalCount === 0 ? 0 : (processedCount / totalCount) * 100;
+            const pct = totalQueued === 0 ? 0 : (processedCount / totalQueued) * 100;
             bar.style.width = `${pct}%`;
         }
 
-        // --- Core Logic ---
+        function toggleControls(running) {
+            document.getElementById('runBtn').style.display = running ? 'none' : 'block';
+            document.getElementById('stopBtn').style.display = running ? 'block' : 'none';
+            document.getElementById('urlInput').disabled = running;
+        }
 
-        async function fetchWithProxy(url, useProxy) {
-            if (!useProxy) {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return await res.text();
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- Network Logic (The Core Update) ---
+
+        function getFakeHeaders() {
+            // These headers mimic a real Chrome browser on Windows
+            return {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Upgrade-Insecure-Requests": "1",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
+            };
+        }
+
+        async function fetchWithRetry(url, isChild) {
+            const apiKey = document.getElementById('apiKey').value || "chikibriki";
+            const humanize = document.getElementById('humanizeToggle').checked;
+            
+            // Base headers for Supabase
+            let headers = { "x-proxy-key": apiKey };
+            
+            if (humanize) {
+                // Merge fake browser headers. 
+                // Note: Browser fetch() forbids setting 'User-Agent' directly, 
+                // but we send them hoping the Proxy forwards them or uses them.
+                // We also add X-User-Agent as a fallback for the proxy to read.
+                const fake = getFakeHeaders();
+                headers = { ...headers, ...fake, "X-User-Agent": fake["User-Agent"] };
             }
 
+            // --- Attempt 1: Primary Proxy ---
             try {
-                // Try Primary Proxy
-                const res = await fetch(PROXY_URL + encodeURIComponent(url));
-                if (!res.ok) throw new Error(`Proxy 1 failed`);
+                if (humanize) await sleep(Math.random() * 1000 + 500); // Jitter
+                const target = PROXY_PRIMARY + encodeURIComponent(url);
+                const res = await fetch(target, { method: 'GET', headers: headers });
+                if (!res.ok) throw new Error(`Status ${res.status}`);
                 return await res.text();
-            } catch (e) {
-                log(`Primary proxy failed for ${url}, trying fallback...`, 'warn');
-                // Try Fallback Proxy
-                const res = await fetch(FALLBACK_PROXY + encodeURIComponent(url));
-                if (!res.ok) throw new Error(`All proxies failed`);
+            } catch (err) {
+                log(`Primary failed (${err.message}). Retrying in 2s...`, 'retry', isChild);
+            }
+
+            // --- Attempt 2: Primary Proxy (Retry) ---
+            try {
+                await sleep(2000); // Wait 2 seconds
+                const target = PROXY_PRIMARY + encodeURIComponent(url);
+                const res = await fetch(target, { method: 'GET', headers: headers });
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                log(`Success on retry!`, 'success', isChild);
                 return await res.text();
+            } catch (err) {
+                log(`Primary retry failed. Switching to Fallback 1...`, 'warn', isChild);
+            }
+
+            // --- Attempt 3: Fallback 1 (CorsProxy.io) ---
+            try {
+                await sleep(1000);
+                const target = PROXY_FALLBACK_1 + encodeURIComponent(url);
+                const res = await fetch(target); // No headers for public proxy
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                return await res.text();
+            } catch (err) {
+                log(`Fallback 1 failed. Switching to Fallback 2...`, 'warn', isChild);
+            }
+
+            // --- Attempt 4: Fallback 2 (AllOrigins) ---
+            try {
+                const target = PROXY_FALLBACK_2 + encodeURIComponent(url);
+                const res = await fetch(target);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                return await res.text();
+            } catch (err) {
+                throw new Error("All 3 proxies failed. Site is likely blocking bots heavily.");
             }
         }
 
-        function cleanHtmlStructure(htmlContent, baseUrl, stripAttrs) {
-            // 1. Parse
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, 'text/html');
+        // --- Parsing Logic ---
 
-            // 2. Fix Relative Links (Critical for Reader View to work properly)
+        function parseAndClean(htmlString, baseUrl, stripAttrs) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, "text/html");
+
+            // Fix Relative Links
             const base = new URL(baseUrl);
-            doc.querySelectorAll('img, a').forEach(el => {
+            doc.querySelectorAll('img, a, link').forEach(el => {
                 if (el.hasAttribute('src')) {
                     try { el.src = new URL(el.getAttribute('src'), base).href; } catch(e){}
                 }
@@ -401,177 +496,220 @@
                 }
             });
 
-            // 3. Pre-Readability Sanitization (Remove heavy junk)
-            // DOMPurify is great, but we want to keep the structure for Readability first.
-            // We manually remove known junk tags.
-            const junkTags = ['script', 'style', 'iframe', 'noscript', 'svg', 'footer', 'nav'];
-            junkTags.forEach(tag => {
+            // Extract Links for Deep Crawl
+            const discoveredLinks = [];
+            const deepCrawl = document.getElementById('deepCrawlToggle').checked;
+            const maxLinks = parseInt(document.getElementById('maxLinks').value) || 20;
+
+            if (deepCrawl) {
+                const anchors = doc.querySelectorAll('a[href]');
+                const rootDomain = base.hostname;
+
+                for (let a of anchors) {
+                    try {
+                        const linkUrl = new URL(a.href);
+                        if (linkUrl.hostname === rootDomain && 
+                            linkUrl.href !== baseUrl && 
+                            !linkUrl.href.includes('#') &&
+                            linkUrl.protocol.startsWith('http')) {
+                            discoveredLinks.push(linkUrl.href);
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // Remove Junk
+            ['script', 'style', 'iframe', 'noscript', 'svg', 'footer', 'nav', 'aside', 'form', 'button'].forEach(tag => {
                 doc.querySelectorAll(tag).forEach(el => el.remove());
             });
 
-            // 4. Run Readability
-            // We must create a new JSDOM-like object or pass the doc. 
-            // Readability modifies the DOM in place.
-            if (!Readability) throw new Error("Readability lib missing");
-            
+            // Readability
+            if (!Readability) throw new Error("Readability lib not loaded");
             const reader = new Readability(doc);
             const article = reader.parse();
 
             if (!article) return null;
 
-            // 5. Post-Processing the Clean HTML
-            // The user wants "structured to a small degree" but "clean from junk".
-            // We take article.content (which is HTML string) and parse it again to clean attributes.
-            const cleanDoc = parser.parseFromString(article.content, 'text/html');
-            
+            // Clean Attributes
+            let finalHtml = article.content;
             if (stripAttrs) {
-                const allEls = cleanDoc.body.querySelectorAll('*');
-                allEls.forEach(el => {
-                    // Keep only href and src, strip everything else (class, id, style, onclick, data-*)
-                    const allowedAttrs = ['href', 'src', 'alt', 'title'];
-                    const attrs = [...el.attributes];
-                    attrs.forEach(attr => {
-                        if (!allowedAttrs.includes(attr.name)) {
-                            el.removeAttribute(attr.name);
-                        }
+                const cleanDoc = parser.parseFromString(finalHtml, 'text/html');
+                cleanDoc.body.querySelectorAll('*').forEach(el => {
+                    const allowed = ['href', 'src', 'alt', 'title', 'colspan', 'rowspan'];
+                    [...el.attributes].forEach(attr => {
+                        if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
                     });
                 });
+                finalHtml = cleanDoc.body.innerHTML;
             }
+
+            const uniqueLinks = [...new Set(discoveredLinks)].slice(0, maxLinks);
 
             return {
                 title: article.title,
-                html: cleanDoc.body.innerHTML, // The clean inner HTML
-                originalUrl: baseUrl
+                html: finalHtml,
+                links: uniqueLinks
             };
         }
 
-        async function processSingleUrl(url, useProxy, stripAttrs) {
-            try {
-                log(`Fetching: ${url}...`);
-                const rawHtml = await fetchWithProxy(url, useProxy);
-                
-                log(`Parsing: ${url}...`);
-                const result = cleanHtmlStructure(rawHtml, url, stripAttrs);
-
-                if (!result) {
-                    throw new Error("Reader View could not extract content.");
-                }
-
-                // Generate Markdown
-                const markdown = turndownService.turndown(result.html);
-
-                // Append to Outputs
-                appendOutput(result, markdown);
-                
-                log(`Success: ${url}`, 'success');
-            } catch (err) {
-                log(`Error (${url}): ${err.message}`, 'error');
-                appendError(url, err.message);
-            } finally {
-                processedCount++;
-                updateProgress();
-            }
-        }
-
-        function appendOutput(data, markdown) {
-            const cleanBox = document.getElementById('cleanOutput');
-            const mdBox = document.getElementById('markdownOutput');
-
-            const separator = "\n<!-- ================================================== -->\n";
-            const mdSeparator = "\n\n---\n\n";
-
-            // HTML Entry
-            const htmlEntry = `
-<div class="entry-header" style="background:#334155; padding:5px; margin-bottom:10px; border-radius:4px;">
-    <strong>SOURCE:</strong> ${data.originalUrl}<br>
-    <strong>TITLE:</strong> ${data.title}
-</div>
-${data.html}
-<br><br>
-`;
-            cleanBox.innerHTML += htmlEntry + "<hr style='border-color:#475569; margin: 30px 0;'>";
-
-            // Markdown Entry
-            const mdEntry = `# ${data.title}\n**Source:** ${data.originalUrl}\n\n${markdown}`;
-            mdBox.textContent += mdEntry + mdSeparator;
-        }
-
-        function appendError(url, msg) {
-            const cleanBox = document.getElementById('cleanOutput');
-            const mdBox = document.getElementById('markdownOutput');
-            
-            const errHtml = `<div style="color:#ef4444; margin-bottom:20px;"><strong>FAILED:</strong> ${url}<br>Reason: ${msg}</div><hr>`;
-            cleanBox.innerHTML += errHtml;
-            
-            const errMd = `> **FAILED:** ${url}\n> Reason: ${msg}\n\n---\n\n`;
-            mdBox.textContent += errMd;
-        }
-
-        // --- Batch Processing ---
+        // --- Crawler Engine ---
 
         async function startCrawler() {
-            const btn = document.getElementById('runBtn');
-            const input = document.getElementById('urlInput');
-            const useProxy = document.getElementById('corsToggle').checked;
-            const stripAttrs = document.getElementById('stripAttrs').checked;
-
-            const urls = input.value.split('\n').map(u => u.trim()).filter(u => u.length > 0);
-
+            const input = document.getElementById('urlInput').value;
+            const urls = input.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+            
             if (urls.length === 0) {
-                log("No URLs provided.", 'warn');
+                log("No URLs provided.", 'error');
                 return;
             }
 
             // Reset
-            document.getElementById('cleanOutput').innerHTML = '';
-            document.getElementById('markdownOutput').textContent = '';
-            document.getElementById('terminal').innerHTML = '';
+            visitedUrls.clear();
+            queue = urls.map(u => ({ url: u, type: 'root' }));
             processedCount = 0;
-            totalCount = urls.length;
-            updateProgress();
+            totalQueued = queue.length;
+            shouldStop = false;
+            isRunning = true;
             
-            btn.disabled = true;
-            btn.innerText = "Crawling...";
-            isProcessing = true;
+            toggleControls(true);
+            updateProgress();
+            log(`Starting crawl. Queue size: ${queue.length}`);
 
-            log(`Starting batch for ${urls.length} URLs...`);
-
-            // Concurrency Control (Process 3 at a time to be nice to browser)
-            const CONCURRENCY = 3;
-            for (let i = 0; i < urls.length; i += CONCURRENCY) {
-                const chunk = urls.slice(i, i + CONCURRENCY);
-                await Promise.all(chunk.map(url => processSingleUrl(url, useProxy, stripAttrs)));
-            }
-
-            log("Batch processing complete.", 'success');
-            btn.disabled = false;
-            btn.innerText = "Start Processing";
-            isProcessing = false;
+            processQueue();
         }
 
-        // --- Export Tools ---
+        function stopCrawler() {
+            shouldStop = true;
+            log("Stopping after current request...", 'warn');
+        }
+
+        async function processQueue() {
+            if (queue.length === 0 || shouldStop) {
+                isRunning = false;
+                toggleControls(false);
+                log(shouldStop ? "Crawler stopped." : "Queue empty. Job done.", shouldStop ? 'warn' : 'success');
+                return;
+            }
+
+            const item = queue.shift();
+            
+            if (visitedUrls.has(item.url)) {
+                processQueue();
+                return;
+            }
+
+            visitedUrls.add(item.url);
+            const isChild = item.type === 'child';
+
+            try {
+                log(`Fetching: ${item.url}`, 'info', isChild);
+                
+                // Use the new Robust Fetcher
+                const rawHtml = await fetchWithRetry(item.url, isChild);
+                const stripAttrs = document.getElementById('stripAttrs').checked;
+                
+                const result = parseAndClean(rawHtml, item.url, stripAttrs);
+
+                if (result) {
+                    const markdown = turndownService.turndown(result.html);
+                    appendOutput(item.url, result.title, result.html, markdown, item.type);
+                    
+                    if (result.links.length > 0) {
+                        let added = 0;
+                        result.links.forEach(link => {
+                            if (!visitedUrls.has(link)) {
+                                queue.push({ url: link, type: 'child' });
+                                added++;
+                            }
+                        });
+                        if (added > 0) {
+                            totalQueued += added;
+                            log(`Found ${added} new links.`, 'success', true);
+                        }
+                    }
+                } else {
+                    log(`Content extraction failed for ${item.url}`, 'error', isChild);
+                }
+
+            } catch (err) {
+                log(`Failed: ${err.message}`, 'error', isChild);
+                appendError(item.url, err.message);
+            }
+
+            processedCount++;
+            updateProgress();
+
+            // Small delay between queue items to be polite
+            setTimeout(processQueue, 500);
+        }
+
+        // --- Output Handling ---
+
+        function appendOutput(url, title, html, markdown, type) {
+            const cleanBox = document.getElementById('cleanOutput');
+            const mdBox = document.getElementById('markdownOutput');
+            
+            const badge = type === 'child' ? '<span style="background:#f59e0b; color:black; padding:2px 4px; font-size:10px; border-radius:2px;">LINKED</span>' : '<span style="background:#22c55e; color:black; padding:2px 4px; font-size:10px; border-radius:2px;">ROOT</span>';
+
+            const htmlEntry = `
+                <div style="border:1px solid #334155; border-radius:6px; margin-bottom:30px; overflow:hidden;">
+                    <div style="background:#1e293b; padding:10px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+                        <div>${badge} <strong>${title}</strong></div>
+                        <div style="font-size:0.75rem; color:#94a3b8;">${url}</div>
+                    </div>
+                    <div style="padding:20px; background:#0f172a;">
+                        ${html}
+                    </div>
+                </div>`;
+            
+            cleanBox.insertAdjacentHTML('beforeend', htmlEntry);
+
+            const mdEntry = `
+---
+**Source:** ${url}  
+**Title:** ${title}  
+**Type:** ${type.toUpperCase()}
+
+${markdown}
+
+`;
+            mdBox.textContent += mdEntry;
+        }
+
+        function appendError(url, msg) {
+            const cleanBox = document.getElementById('cleanOutput');
+            const htmlEntry = `
+                <div style="border:1px solid #ef4444; border-radius:6px; margin-bottom:20px; padding:10px; color:#ef4444; background:rgba(239,68,68,0.1);">
+                    <strong>FAILED:</strong> ${url}<br>
+                    <small>${msg}</small>
+                </div>`;
+            cleanBox.insertAdjacentHTML('beforeend', htmlEntry);
+        }
+
+        function clearOutput() {
+            document.getElementById('cleanOutput').innerHTML = '';
+            document.getElementById('markdownOutput').textContent = '';
+            log('Output cleared.');
+        }
 
         function copyOutput(id) {
             const el = document.getElementById(id);
-            const text = id === 'cleanOutput' ? el.innerText : el.textContent; // innerText preserves formatting better for HTML view
-            navigator.clipboard.writeText(text).then(() => {
-                log("Content copied to clipboard.", 'success');
-            });
+            const text = id === 'cleanOutput' ? el.innerText : el.textContent;
+            navigator.clipboard.writeText(text).then(() => log("Copied to clipboard.", 'success'));
         }
 
         function downloadOutput(type) {
+            const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,"-");
             let content, filename, mime;
-            const timestamp = new Date().toISOString().slice(0,10);
 
             if (type === 'html') {
-                // Wrap in a basic template so it renders nicely when opened
                 const body = document.getElementById('cleanOutput').innerHTML;
-                content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Crawl Result ${timestamp}</title><style>body{font-family:sans-serif;max-width:800px;margin:20px auto;line-height:1.6;color:#333;} img{max-width:100%;} pre{background:#f4f4f4;padding:10px;}</style></head><body>${body}</body></html>`;
-                filename = `crawl_results_${timestamp}.html`;
+                content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Crawl ${timestamp}</title><style>body{font-family:sans-serif;max-width:800px;margin:20px auto;line-height:1.6;color:#333;background:#f4f4f9;padding:20px;} img{max-width:100%;} a{color:#2563eb;}</style></head><body><h1>Crawl Results</h1>${body}</body></html>`;
+                filename = `crawl_${timestamp}.html`;
                 mime = "text/html";
             } else {
                 content = document.getElementById('markdownOutput').textContent;
-                filename = `crawl_results_${timestamp}.md`;
+                filename = `crawl_${timestamp}.md`;
                 mime = "text/markdown";
             }
 
@@ -580,8 +718,6 @@ ${data.html}
             a.href = URL.createObjectURL(blob);
             a.download = filename;
             a.click();
-            URL.revokeObjectURL(a.href);
-            log(`Downloaded ${filename}`, 'success');
         }
 
     </script>
