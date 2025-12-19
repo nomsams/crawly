@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Web Scraper & Cleaner</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script src="https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-panel: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --error: #ef4444;
+            --border: #475569;
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+        * { box-sizing: border-box; outline: none; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--bg-panel);
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; }
+        .badge { font-size: 0.7rem; background: var(--accent); padding: 2px 6px; border-radius: 4px; margin-left: 10px; text-transform: uppercase; }
+
+        /* --- Layout --- */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar (Input & Controls) */
+        .sidebar {
+            width: 350px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .input-group { margin-bottom: 20px; display: flex; flex-direction: column; flex: 1; }
+        
+        label { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600; }
+        
+        textarea {
+            flex: 1;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 12px;
+            border-radius: 6px;
+            resize: none;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: var(--accent); }
+
+        .settings {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .toggle-row:last-child { margin-bottom: 0; }
+
+        /* Custom Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #64748b; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Results Area */
+        .results-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .tabs {
+            display: flex;
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+
+        .output-wrapper {
+            flex: 1;
+            position: relative;
+            display: none;
+        }
+        .output-wrapper.active { display: block; }
+
+        .output-content {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+
+        /* Terminal / Logs */
+        .terminal-overlay {
+            height: 150px;
+            background-color: #000;
+            border-top: 1px solid var(--border);
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse; /* Newest at bottom visually, but we append */
+        }
+        .log-entry { margin: 2px 0; }
+        .log-info { color: #94a3b8; }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--error); }
+        .log-warn { color: #f59e0b; }
+
+        /* Utilities */
+        .progress-bar {
+            height: 4px;
+            background-color: var(--bg-input);
+            width: 100%;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .toolbar {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            z-index: 5;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-sm {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .btn-sm:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; height: 40%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display:flex; align-items:center">
+            <h1>Crawl & Clean <span class="badge">PRO</span></h1>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            Running locally in browser
+        </div>
+    </header>
+
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="input-group">
+                <label for="urlInput">Target URLs (One per line)</label>
+                <textarea id="urlInput" placeholder="https://example.com/article&#10;https://blog.site.com/post"></textarea>
+            </div>
+
+            <div class="settings">
+                <div class="toggle-row">
+                    <span title="Routes requests through a public proxy to bypass SOP/CORS restrictions.">Enable CORS Proxy</span>
+                    <label class="switch">
+                        <input type="checkbox" id="corsToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span title="Removes all class names, IDs, and styles from the HTML output.">Strip Attributes</span>
+                    <label class="switch">
+                        <input type="checkbox" id="stripAttrs" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="runBtn" class="btn-primary" onclick="startCrawler()">Start Processing</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results-area">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('clean')">Structured HTML</div>
+                <div class="tab" onclick="switchTab('markdown')">Markdown</div>
+            </div>
+
+            <!-- HTML Output -->
+            <div id="view-clean" class="output-wrapper active">
+                <div class="toolbar">
+                    <button class="btn-sm" onclick="downloadOutput('html')">Download .html</button>
+                    <button class="btn-sm" onclick="copyOutput('cleanOutput')">Copy</button>
+                </div>
+                <div id="cleanOutput" class="output-content"></div>
+            </div>
+
+            <!-- Markdown Output -->
+            <div id="view-markdown" class="output-wrapper">
+                <div class="toolbar">
+                    <button class="btn-sm" onclick="downloadOutput('md')">Download .md</button>
+                    <button class="btn-sm" onclick="copyOutput('markdownOutput')">Copy</button>
+                </div>
+                <div id="markdownOutput" class="output-content"></div>
+            </div>
+
+            <!-- Terminal Log -->
+            <div class="terminal-overlay" id="terminal">
+                <div class="log-entry log-info">> System ready. Waiting for input...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & State ---
+        const PROXY_URL = "https://api.allorigins.win/raw?url=";
+        const FALLBACK_PROXY = "https://corsproxy.io/?"; // Fallback if first fails
+        
+        let isProcessing = false;
+        let processedCount = 0;
+        let totalCount = 0;
+
+        // --- Turndown Setup (Markdown) ---
+        const turndownService = new TurndownService({
+            headingStyle: 'atx',
+            codeBlockStyle: 'fenced',
+            emDelimiter: '*'
+        });
+        turndownService.use(turndownPluginGfm.gfm);
+        
+        // Remove scripts and styles from markdown conversion explicitly
+        turndownService.remove(['script', 'style', 'iframe', 'nav', 'footer', 'header', 'aside']);
+
+        // --- UI Functions ---
+        
+        function log(msg, type = 'info') {
+            const term = document.getElementById('terminal');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+            entry.innerText = `[${time}] ${msg}`;
+            
+            // Prepend to show latest at bottom if we used flex-col-reverse, 
+            // but for standard scrolling we append.
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.output-wrapper').forEach(w => w.classList.remove('active'));
+            
+            if (tabName === 'clean') {
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                document.getElementById('view-clean').classList.add('active');
+            } else {
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('view-markdown').classList.add('active');
+            }
+        }
+
+        function updateProgress() {
+            const bar = document.getElementById('progressBar');
+            const pct = totalCount === 0 ? 0 : (processedCount / totalCount) * 100;
+            bar.style.width = `${pct}%`;
+        }
+
+        // --- Core Logic ---
+
+        async function fetchWithProxy(url, useProxy) {
+            if (!useProxy) {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.text();
+            }
+
+            try {
+                // Try Primary Proxy
+                const res = await fetch(PROXY_URL + encodeURIComponent(url));
+                if (!res.ok) throw new Error(`Proxy 1 failed`);
+                return await res.text();
+            } catch (e) {
+                log(`Primary proxy failed for ${url}, trying fallback...`, 'warn');
+                // Try Fallback Proxy
+                const res = await fetch(FALLBACK_PROXY + encodeURIComponent(url));
+                if (!res.ok) throw new Error(`All proxies failed`);
+                return await res.text();
+            }
+        }
+
+        function cleanHtmlStructure(htmlContent, baseUrl, stripAttrs) {
+            // 1. Parse
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+
+            // 2. Fix Relative Links (Critical for Reader View to work properly)
+            const base = new URL(baseUrl);
+            doc.querySelectorAll('img, a').forEach(el => {
+                if (el.hasAttribute('src')) {
+                    try { el.src = new URL(el.getAttribute('src'), base).href; } catch(e){}
+                }
+                if (el.hasAttribute('href')) {
+                    try { el.href = new URL(el.getAttribute('href'), base).href; } catch(e){}
+                }
+            });
+
+            // 3. Pre-Readability Sanitization (Remove heavy junk)
+            // DOMPurify is great, but we want to keep the structure for Readability first.
+            // We manually remove known junk tags.
+            const junkTags = ['script', 'style', 'iframe', 'noscript', 'svg', 'footer', 'nav'];
+            junkTags.forEach(tag => {
+                doc.querySelectorAll(tag).forEach(el => el.remove());
+            });
+
+            // 4. Run Readability
+            // We must create a new JSDOM-like object or pass the doc. 
+            // Readability modifies the DOM in place.
+            if (!Readability) throw new Error("Readability lib missing");
+            
+            const reader = new Readability(doc);
+            const article = reader.parse();
+
+            if (!article) return null;
+
+            // 5. Post-Processing the Clean HTML
+            // The user wants "structured to a small degree" but "clean from junk".
+            // We take article.content (which is HTML string) and parse it again to clean attributes.
+            const cleanDoc = parser.parseFromString(article.content, 'text/html');
+            
+            if (stripAttrs) {
+                const allEls = cleanDoc.body.querySelectorAll('*');
+                allEls.forEach(el => {
+                    // Keep only href and src, strip everything else (class, id, style, onclick, data-*)
+                    const allowedAttrs = ['href', 'src', 'alt', 'title'];
+                    const attrs = [...el.attributes];
+                    attrs.forEach(attr => {
+                        if (!allowedAttrs.includes(attr.name)) {
+                            el.removeAttribute(attr.name);
+                        }
+                    });
+                });
+            }
+
+            return {
+                title: article.title,
+                html: cleanDoc.body.innerHTML, // The clean inner HTML
+                originalUrl: baseUrl
+            };
+        }
+
+        async function processSingleUrl(url, useProxy, stripAttrs) {
+            try {
+                log(`Fetching: ${url}...`);
+                const rawHtml = await fetchWithProxy(url, useProxy);
+                
+                log(`Parsing: ${url}...`);
+                const result = cleanHtmlStructure(rawHtml, url, stripAttrs);
+
+                if (!result) {
+                    throw new Error("Reader View could not extract content.");
+                }
+
+                // Generate Markdown
+                const markdown = turndownService.turndown(result.html);
+
+                // Append to Outputs
+                appendOutput(result, markdown);
+                
+                log(`Success: ${url}`, 'success');
+            } catch (err) {
+                log(`Error (${url}): ${err.message}`, 'error');
+                appendError(url, err.message);
+            } finally {
+                processedCount++;
+                updateProgress();
+            }
+        }
+
+        function appendOutput(data, markdown) {
+            const cleanBox = document.getElementById('cleanOutput');
+            const mdBox = document.getElementById('markdownOutput');
+
+            const separator = "\n<!-- ================================================== -->\n";
+            const mdSeparator = "\n\n---\n\n";
+
+            // HTML Entry
+            const htmlEntry = `
+<div class="entry-header" style="background:#334155; padding:5px; margin-bottom:10px; border-radius:4px;">
+    <strong>SOURCE:</strong> ${data.originalUrl}<br>
+    <strong>TITLE:</strong> ${data.title}
+</div>
+${data.html}
+<br><br>
+`;
+            cleanBox.innerHTML += htmlEntry + "<hr style='border-color:#475569; margin: 30px 0;'>";
+
+            // Markdown Entry
+            const mdEntry = `# ${data.title}\n**Source:** ${data.originalUrl}\n\n${markdown}`;
+            mdBox.textContent += mdEntry + mdSeparator;
+        }
+
+        function appendError(url, msg) {
+            const cleanBox = document.getElementById('cleanOutput');
+            const mdBox = document.getElementById('markdownOutput');
+            
+            const errHtml = `<div style="color:#ef4444; margin-bottom:20px;"><strong>FAILED:</strong> ${url}<br>Reason: ${msg}</div><hr>`;
+            cleanBox.innerHTML += errHtml;
+            
+            const errMd = `> **FAILED:** ${url}\n> Reason: ${msg}\n\n---\n\n`;
+            mdBox.textContent += errMd;
+        }
+
+        // --- Batch Processing ---
+
+        async function startCrawler() {
+            const btn = document.getElementById('runBtn');
+            const input = document.getElementById('urlInput');
+            const useProxy = document.getElementById('corsToggle').checked;
+            const stripAttrs = document.getElementById('stripAttrs').checked;
+
+            const urls = input.value.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+
+            if (urls.length === 0) {
+                log("No URLs provided.", 'warn');
+                return;
+            }
+
+            // Reset
+            document.getElementById('cleanOutput').innerHTML = '';
+            document.getElementById('markdownOutput').textContent = '';
+            document.getElementById('terminal').innerHTML = '';
+            processedCount = 0;
+            totalCount = urls.length;
+            updateProgress();
+            
+            btn.disabled = true;
+            btn.innerText = "Crawling...";
+            isProcessing = true;
+
+            log(`Starting batch for ${urls.length} URLs...`);
+
+            // Concurrency Control (Process 3 at a time to be nice to browser)
+            const CONCURRENCY = 3;
+            for (let i = 0; i < urls.length; i += CONCURRENCY) {
+                const chunk = urls.slice(i, i + CONCURRENCY);
+                await Promise.all(chunk.map(url => processSingleUrl(url, useProxy, stripAttrs)));
+            }
+
+            log("Batch processing complete.", 'success');
+            btn.disabled = false;
+            btn.innerText = "Start Processing";
+            isProcessing = false;
+        }
+
+        // --- Export Tools ---
+
+        function copyOutput(id) {
+            const el = document.getElementById(id);
+            const text = id === 'cleanOutput' ? el.innerText : el.textContent; // innerText preserves formatting better for HTML view
+            navigator.clipboard.writeText(text).then(() => {
+                log("Content copied to clipboard.", 'success');
+            });
+        }
+
+        function downloadOutput(type) {
+            let content, filename, mime;
+            const timestamp = new Date().toISOString().slice(0,10);
+
+            if (type === 'html') {
+                // Wrap in a basic template so it renders nicely when opened
+                const body = document.getElementById('cleanOutput').innerHTML;
+                content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Crawl Result ${timestamp}</title><style>body{font-family:sans-serif;max-width:800px;margin:20px auto;line-height:1.6;color:#333;} img{max-width:100%;} pre{background:#f4f4f4;padding:10px;}</style></head><body>${body}</body></html>`;
+                filename = `crawl_results_${timestamp}.html`;
+                mime = "text/html";
+            } else {
+                content = document.getElementById('markdownOutput').textContent;
+                filename = `crawl_results_${timestamp}.md`;
+                mime = "text/markdown";
+            }
+
+            const blob = new Blob([content], {type: mime});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            log(`Downloaded ${filename}`, 'success');
+        }
+
+    </script>
+</body>
+</html>
